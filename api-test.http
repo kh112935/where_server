@@ -1,0 +1,20 @@
+### 1. 실시간 트렌드 통계 테스트 (GET)
+GET http://localhost:3000/api/v1/trends
+
+
+### 2. 일반 맛집 검색 테스트 (GET)
+GET http://localhost:3000/api/v1/recommend?location=용봉동&food=돈까스
+
+
+### 3. 챗봇 추천 엔진 테스트 (POST) - 라우터 분리 적용
+POST http://localhost:3000/api/v1/chatbot/recommend
+Content-Type: application/json
+
+{
+  "location": "용봉동",
+  "tags": ["혼밥", "가성비"]
+}
+
+
+### 4. 챗봇 질문 리스트 조회 테스트 (GET) - 라우터 분리 적용
+GET http://localhost:3000/api/v1/chatbot/questions

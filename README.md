@@ -57,8 +57,9 @@ node server.js
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
 | `GET` | `/api/v1/recommend?location=용봉동&food=돈까스` | 기본 지역/음식 기반 맛집 검색 |
-| `POST` | `/api/v1/chatbot-recommend` | [추천엔진] 태그 기반 맞춤형 식당 추천 |
-| `GET` | `/api/v1/trends` | 실시간 인기 검색어 TOP 5 |
+| `GET` | `/api/v1/trends` | 실시간 인기 검색어 TOP 5 (최근 1시간) |
 | `POST` | `/api/v1/favorite` | 식당 찜하기 |
 | `GET` | `/api/v1/favorites` | 내 찜 목록 조회 |
 | `DELETE` | `/api/v1/favorite/:f_id` | 찜 취소 |
+| `GET` | `/api/v1/chatbot/questions` | [챗봇] 질문 리스트 조회 |
+| `POST` | `/api/v1/chatbot/recommend` | [챗봇] 태그 기반 맞춤형 식당 추천 |
