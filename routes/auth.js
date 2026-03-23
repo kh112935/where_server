@@ -1,3 +1,24 @@
+/**
+ * @swagger
+ * /api/v1/auth/login:
+ *   post:
+ *     summary: 로그인 및 토큰 발급
+ *     tags: [Auth]
+ *     requestBody:
+ *     required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *            type: object
+ *             properties:
+ *               username:
+ * type: string
+ *               password:
+ *                   type: string
+ *     responses:
+ *       200:
+ *         description: 로그인 성공
+ */
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
@@ -62,6 +83,71 @@ router.get('/profile', verifyToken, (req, res) => {
         message: "✅ 마패 확인 완료! VIP 구역에 오신 것을 환영합니다.",
         user_info: req.user
     });
+});
+
+const multer = require('multer');
+const path = require('path');
+
+// 프로필 이미지 저장 설정 (기존 review.js와 동일한 uploads 폴더 사용)
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/');
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'profile-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+const upload = multer({ storage: storage });
+
+/**
+ * @route   PATCH /api/v1/auth/profile
+ * @desc    내 프로필 수정 (닉네임, 프로필 사진)
+ * [주의] 위에서 설명한 ALTER TABLE 명령을 먼저 실행해야 합니다.
+ */
+router.patch('/profile', verifyToken, upload.single('profileImage'), async (req, res) => {
+    const userId = req.user.userId;
+    const { username } = req.body;
+    const profileImageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+
+    try {
+        // 1. 유효성 검사: 둘 다 안 들어왔을 경우
+        if (!username && !profileImageUrl) {
+            return res.status(400).json({ status: "fail", message: "수정할 정보를 입력해주세요." });
+        }
+
+        // 2. 동적 쿼리 빌드 (값이 있는 필드만 업데이트)
+        let query = "UPDATE users SET ";
+        let params = [];
+
+        if (username) {
+            query += "username = ?, ";
+            params.push(username);
+        }
+        if (profileImageUrl) {
+            query += "profile_image = ?, ";
+            params.push(profileImageUrl);
+        }
+
+        // 마지막 쉼표 제거
+        query = query.replace(/, $/, "");
+        query += " WHERE id = ?";
+        params.push(userId);
+
+        const [result] = await pool.query(query, params);
+
+        res.json({
+            status: "success",
+            message: "프로필이 업데이트되었습니다.",
+            data: {
+                username: username || null,
+                profileImageUrl: profileImageUrl || null
+            }
+        });
+    } catch (error) {
+        console.error("❌ 프로필 수정 에러:", error);
+        res.status(500).json({ status: "error", message: "프로필 수정 실패" });
+    }
 });
 
 module.exports = router;
