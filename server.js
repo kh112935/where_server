@@ -122,12 +122,14 @@ app.get('/api/v1/recommend', async (req, res) => {
     }
 });
 
-/** 2. 인기 검색어 통계 (TOP 5) */
+/** 2. 실시간 인기 검색어 통계 (최근 1시간 기준 TOP 5) */
 app.get('/api/v1/trends', async (req, res) => {
     try {
+        // [수정된 SQL] 단순히 hit_count를 보는 게 아니라, 최근 1시간 이내에 업데이트된 데이터만 필터링합니다.
         const sql = `
             SELECT location_keyword, food_keyword, hit_count 
             FROM search_logs 
+            WHERE last_searched_at >= NOW() - INTERVAL 1 HOUR
             ORDER BY hit_count DESC 
             LIMIT 5;
         `;
@@ -135,11 +137,12 @@ app.get('/api/v1/trends', async (req, res) => {
 
         res.json({
             status: "success",
+            period: "last_1_hour", // 프론트엔드 팀원에게 "이건 최근 1시간 데이터야"라고 알려주는 용도
             data: trends
         });
     } catch (error) {
-        console.error("❌ 통계 조회 에러:", error.message);
-        res.status(500).json({ status: "error", message: "통계 데이터를 불러오지 못했습니다." });
+        console.error("❌ 실시간 통계 조회 에러:", error.message);
+        res.status(500).json({ status: "error", message: "실시간 데이터를 불러오지 못했습니다." });
     }
 });
 
