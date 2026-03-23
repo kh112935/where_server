@@ -31,6 +31,7 @@ app.use(morgan('dev'));
 
 // --- [API 라우터 연결 (미들웨어)] ---
 // 클라이언트의 요청 주소에 따라 각각의 전담 파일로 보냅니다.
+app.use('/api/v1/auth', require('./routes/auth'));
 app.use('/api/v1/recommend', require('./routes/recommend'));
 app.use('/api/v1/trends', require('./routes/trends'));
 app.use('/api/v1', require('./routes/favorite.js')); // 찜하기 관련 통합 (/favorite, /favorites)
