@@ -1,0 +1,40 @@
+tags:
+  - name: Trends
+    description: 실시간 검색 트렌드 조회 API
+
+paths:
+  /api/v1/trends:
+    get:
+      summary: 최근 1시간 실시간 검색어 TOP 5 조회
+      tags:
+        - Trends
+      responses:
+        "200":
+          description: 실시간 트렌드 조회 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  period:
+                    type: string
+                    example: "last_1_hour"
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        location_keyword:
+                          type: string
+                          description: 지역 키워드
+                        food_keyword:
+                          type: string
+                          description: 음식 키워드
+                        hit_count:
+                          type: integer
+                          description: 검색 횟수
+        "500":
+          description: 서버 내부 오류

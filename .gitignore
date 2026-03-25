@@ -1,5 +1,8 @@
-# Node.js 의존성 폴더 (용량이 너무 커서 올리면 안 됨)
 node_modules/
-
-# 환경 변수 및 비밀 키 (해킹 방지용, 절대 올리면 안 됨!!!)
 .env
+uploads/
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+profile.jpg

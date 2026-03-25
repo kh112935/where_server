@@ -1,0 +1,131 @@
+tags:
+  - name: Recommend
+    description: 맛집 검색 및 추천 API (카카오 API 연동, 거리/평점 기반)
+
+components:
+  schemas:
+    SearchRequest:
+      type: object
+      required:
+        - lat
+        - lng
+      properties:
+        lat:
+          type: number
+          format: float
+          description: 현재 위도
+        lng:
+          type: number
+          format: float
+          description: 현재 경도
+        categories:
+          type: array
+          items:
+            type: string
+          description: 다중 카테고리 필터 배열 (예 - ["일식", "중식"])
+        minRating:
+          type: number
+          format: float
+          default: 0
+          description: 최소 평점
+        radius:
+          type: number
+          default: 3
+          description: 검색 반경 (km)
+
+paths:
+  /api/v1/recommend:
+    get:
+      summary: 키워드 기반 맛집 추천 (DB 캐시 및 카카오 API)
+      tags:
+        - Recommend
+      parameters:
+        - in: query
+          name: location
+          required: true
+          schema:
+            type: string
+          description: 검색할 지역 (예 - 강남역)
+        - in: query
+          name: food
+          required: true
+          schema:
+            type: string
+          description: 검색할 음식 종류 (예 - 돈까스)
+      responses:
+        "200":
+          description: 추천 목록 조회 성공
+        "400":
+          description: 지역 또는 음식 파라미터 누락
+        "500":
+          description: 서버 내부 오류
+
+  /api/v1/recommend/nearby:
+    get:
+      summary: 내 위치 기반 가까운 맛집 검색
+      tags:
+        - Recommend
+      parameters:
+        - in: query
+          name: lat
+          required: true
+          schema:
+            type: number
+            format: float
+          description: 현재 위도
+        - in: query
+          name: lng
+          required: true
+          schema:
+            type: number
+            format: float
+          description: 현재 경도
+        - in: query
+          name: radius
+          schema:
+            type: number
+            default: 3
+          description: 검색 반경 (km)
+      responses:
+        "200":
+          description: 거리순 조회 성공
+        "400":
+          description: 위도/경도 누락
+        "500":
+          description: 거리 계산 및 서버 오류
+
+  /api/v1/recommend/top-rated:
+    get:
+      summary: 평점 높은 순 맛집 검색 (리뷰 수 포함)
+      tags:
+        - Recommend
+      parameters:
+        - in: query
+          name: category
+          schema:
+            type: string
+          description: 특정 카테고리 필터 (선택 사항)
+      responses:
+        "200":
+          description: 랭킹 조회 성공
+        "500":
+          description: 서버 내부 오류
+
+  /api/v1/recommend/search:
+    post:
+      summary: 통합 검색 (거리 + 평점 + 다중 카테고리 복합 필터)
+      tags:
+        - Recommend
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        "200":
+          description: 통합 검색 성공
+        "400":
+          description: 위도/경도 누락
+        "500":
+          description: 서버 내부 오류

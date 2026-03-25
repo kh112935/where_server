@@ -1,11 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../server').pool;
+const pool = require('../config/db');
 const verifyToken = require('../middleware/auth');
 
-// [참고] server.js에서 이미 /api/v1/favorite 로 들어왔습니다.
-
-/** POST / - 맛집 찜하기 (JWT 필수) -> /api/v1/favorite */
 router.post('/', verifyToken, async (req, res) => {
     const { restaurantId } = req.body;
     const userId = req.user.userId;
@@ -26,8 +23,6 @@ router.post('/', verifyToken, async (req, res) => {
     }
 });
 
-/** GET /list - 내 찜 목록 조회 -> /api/v1/favorite/list */
-// (기존 /favorites와 겹치지 않게 'list'나 빈 값('/')으로 두는 것이 깔끔합니다)
 router.get('/list', verifyToken, async (req, res) => {
     const userId = req.user.userId;
     const page = parseInt(req.query.page) || 1;
@@ -59,7 +54,6 @@ router.get('/list', verifyToken, async (req, res) => {
     }
 });
 
-/** GET /ranking - 전체 찜 랭킹 TOP 5 -> /api/v1/favorite/ranking */
 router.get('/ranking', async (req, res) => {
     try {
         const sql = `
@@ -78,7 +72,6 @@ router.get('/ranking', async (req, res) => {
     }
 });
 
-/** GET /status/:restaurantId - 찜 여부 확인 -> /api/v1/favorite/status/:id */
 router.get('/status/:restaurantId', verifyToken, async (req, res) => {
     const { restaurantId } = req.params;
     const userId = req.user.userId;
@@ -91,7 +84,6 @@ router.get('/status/:restaurantId', verifyToken, async (req, res) => {
     }
 });
 
-/** DELETE /:f_id - 찜 취소하기 -> /api/v1/favorite/:f_id */
 router.delete('/:f_id', verifyToken, async (req, res) => {
     const { f_id } = req.params;
     const userId = req.user.userId;

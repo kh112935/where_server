@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const pool = require('../server').pool;
+const pool = require('../config/db');
 
 const KAKAO_KEY = process.env.KAKAO_REST_API_KEY;
 
@@ -26,7 +26,6 @@ const refineData = (doc) => {
     };
 };
 
-/** GET /api/v1/recommend */
 router.get('/', async (req, res) => {
     const { location, food } = req.query;
     if (!location || !food) {
@@ -90,12 +89,7 @@ router.get('/', async (req, res) => {
     }
 });
 
-/**
- * @route   GET /api/v1/recommend/nearby
- * @desc    내 위치 기반 가까운 맛집 검색 (거리순 정렬)
- */
 router.get('/nearby', async (req, res) => {
-    // 프론트엔드에서 보낸 현재 위치와 검색 반경(기본 3km)
     const { lat, lng, radius = 3 } = req.query;
 
     if (!lat || !lng) {
@@ -103,8 +97,6 @@ router.get('/nearby', async (req, res) => {
     }
 
     try {
-        // 하버사인 공식(Haversine Formula)을 이용한 거리 계산 SQL
-        // 6371은 지구의 반지름(km)입니다.
         const sql = `
             SELECT *, (
                 6371 * acos(
@@ -117,7 +109,6 @@ router.get('/nearby', async (req, res) => {
             ORDER BY distance ASC
             LIMIT 10;
         `;
-
         const [rows] = await pool.query(sql, [lat, lng, lat, radius]);
 
         res.json({
@@ -131,15 +122,10 @@ router.get('/nearby', async (req, res) => {
     }
 });
 
-/**
- * @route   GET /api/v1/recommend/top-rated
- * @desc    평점 높은 순 맛집 검색 (리뷰 수 포함)
- */
 router.get('/top-rated', async (req, res) => {
-    const { category } = req.query; // 특정 카테고리만 보고 싶을 때 사용
+    const { category } = req.query;
 
     try {
-        // [핵심] restaurants 테이블과 reviews 테이블을 JOIN하여 평균과 개수를 계산
         let sql = `
             SELECT 
                 r.id, r.name, r.category, r.address,
@@ -157,7 +143,7 @@ router.get('/top-rated', async (req, res) => {
 
         sql += `
             GROUP BY r.id
-            HAVING review_count > 0  -- 리뷰가 최소 1개 이상인 곳만 우선 노출
+            HAVING review_count > 0
             ORDER BY average_rating DESC, review_count DESC
             LIMIT 10;
         `;
@@ -175,12 +161,7 @@ router.get('/top-rated', async (req, res) => {
     }
 });
 
-/**
- * @route   POST /api/v1/recommend/search
- * @desc    통합 검색 (거리 + 평점 + 다중 카테고리 + 최소 평점)
- */
 router.post('/search', async (req, res) => {
-    // lat/lng는 필수, 나머지는 선택
     const { lat, lng, categories, minRating = 0, radius = 3 } = req.body;
 
     if (!lat || !lng) {
@@ -201,19 +182,14 @@ router.post('/search', async (req, res) => {
 
         const params = [lat, lng, lat];
 
-        // 1. 다중 카테고리 필터 (배열로 받음: ["돈까스", "일식"])
         if (categories && categories.length > 0) {
             sql += ` AND r.category IN (${categories.map(() => '?').join(',')})`;
             params.push(...categories);
         }
 
         sql += ` GROUP BY r.id `;
-
-        // 2. 최소 평점 및 거리 필터 (HAVING 절 사용)
         sql += ` HAVING distance <= ? AND average_rating >= ? `;
         params.push(radius, minRating);
-
-        // 3. 정렬 (가까운 순 우선, 그다음 평점 순)
         sql += ` ORDER BY distance ASC, average_rating DESC LIMIT 20; `;
 
         const [rows] = await pool.query(sql, params);

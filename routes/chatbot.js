@@ -1,12 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const pool = require('../server').pool;
+const pool = require('../config/db');
 const { getBestFoodKeyword } = require('../recommendEngine');
 
 const PORT = process.env.PORT || 3000;
 
-/** GET /api/v1/chatbot/questions - 챗봇 질문 리스트 제공 */
 router.get('/questions', async (req, res) => {
     try {
         const sql = `SELECT step, question_text, options FROM chatbot_questions ORDER BY step ASC`;
@@ -22,7 +21,6 @@ router.get('/questions', async (req, res) => {
     }
 });
 
-/** POST /api/v1/chatbot/recommend - 챗봇 맞춤형 추천 */
 router.post('/recommend', async (req, res) => {
     const { location, tags } = req.body;
 

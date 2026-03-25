@@ -1,0 +1,51 @@
+tags:
+  - name: Chatbot
+    description: AI 챗봇 맞춤형 추천 및 질문 API
+
+components:
+  schemas:
+    ChatbotRecommendRequest:
+      type: object
+      required:
+        - location
+        - tags
+      properties:
+        location:
+          type: string
+          description: 검색할 지역 (예 - 강남역, 홍대)
+        tags:
+          type: array
+          items:
+            type: string
+          description: 사용자가 선택한 태그 배열 (예 - ["매운맛", "가성비", "데이트"])
+
+paths:
+  /api/v1/chatbot/questions:
+    get:
+      summary: 챗봇 질문 리스트 제공
+      tags:
+        - Chatbot
+      responses:
+        "200":
+          description: 질문 리스트 조회 성공
+        "500":
+          description: 서버 내부 오류
+
+  /api/v1/chatbot/recommend:
+    post:
+      summary: 챗봇 맞춤형 추천 (태그 기반)
+      tags:
+        - Chatbot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatbotRecommendRequest'
+      responses:
+        "200":
+          description: 맞춤형 메뉴 추천 성공
+        "400":
+          description: 필수 파라미터 누락 (지역 또는 태그 배열)
+        "500":
+          description: 추천 엔진 가동 중 오류 발생
