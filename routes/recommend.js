@@ -1,29 +1,30 @@
 const express = require('express');
 const router = express.Router();
 const recommendController = require('../controllers/recommend.controller');
+const validate = require('../middleware/validator'); // 유효성 검사 미들웨어
+const { recommendSchema, nearbySchema, complexSearchSchema } = require('../validators/recommend.validator');
 
 /**
- * GET /api/v1/recommend
- * 키워드 기반 맛집 추천 (DB 캐시 및 카카오 API 연동)
+ * 1. 키워드 기반 맛집 추천 (GET /)
+ * 유효성 검사: location 필수
  */
-router.get('/', recommendController.getRecommend);
+router.get('/', validate(recommendSchema), recommendController.getRecommend);
 
 /**
- * GET /api/v1/recommend/nearby
- * 내 위치 기반 가까운 맛집 검색 (거리순)
+ * 2. 내 위치 기반 가까운 맛집 검색 (GET /nearby)
+ * 유효성 검사: 위경도 숫자 및 범위 체크
  */
-router.get('/nearby', recommendController.getNearby);
+router.get('/nearby', validate(nearbySchema), recommendController.getNearby);
 
 /**
- * GET /api/v1/recommend/top-rated
- * 평점 높은 순 맛집 랭킹 조회
+ * 3. 평점 높은 순 맛집 랭킹 조회 (GET /top-rated)
  */
 router.get('/top-rated', recommendController.getTopRated);
 
 /**
- * POST /api/v1/recommend/search
- * 통합 필터 검색 (거리 + 평점 + 카테고리 복합 필터)
+ * 4. 통합 필터 검색 (POST /search)
+ * 유효성 검사: 복합 필터 구조 체크
  */
-router.post('/search', recommendController.getComplexSearch);
+router.post('/search', validate(complexSearchSchema), recommendController.getComplexSearch);
 
 module.exports = router;
