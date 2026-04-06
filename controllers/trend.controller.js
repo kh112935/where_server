@@ -1,17 +1,21 @@
-const trendService = require('../services/trend.service');
+const TrendService = require('../services/trend.service');
 
-// 클라이언트와의 통신(Req/Res)만 전담합니다.
-exports.getTrends = async (req, res) => {
-    try {
-        const result = await trendService.getTrendData();
+class TrendController {
+    static async getTrends(req, res, next) {
+        try {
+            const result = await TrendService.getTrendData();
 
-        res.json({
-            status: "success",
-            period: result.period,
-            data: result.data
-        });
-    } catch (error) {
-        console.error("❌ 실시간 통계 조회 에러:", error.message);
-        res.status(500).json({ status: "error", message: "실시간 데이터를 불러오지 못했습니다." });
+            res.status(200).json({
+                status: "success",
+                period: result.period,
+                count: result.data.length,
+                data: result.data
+            });
+        } catch (error) {
+            // 콘솔 출력이나 res.status(500) 하드코딩 대신 전역 미들웨어로 넘깁니다.
+            next(error);
+        }
     }
-};
+}
+
+module.exports = TrendController;

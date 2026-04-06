@@ -5,8 +5,12 @@ const morgan = require('morgan');
 const path = require('path');
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
+
 const errorHandler = require('./middleware/errorHandler');
-const logger = require('./utils/logger'); // 로거 임포트
+const logger = require('./utils/logger');
+
+// [추가] DB 커넥션 풀 로드 및 최초 연결 테스트 실행
+const dbPool = require('./config/db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -41,15 +45,53 @@ const specs = swaggerJsdoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
 // --- [공통 미들웨어 및 로깅] ---
-app.use(cors());
+// 🛡️ 실무형 CORS 화이트리스트 보안 설정
+const whitelist = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:5173',
+    'http://localhost:5500'
+    // 추후 플러터 웹(Web) 배포 도메인이나 실제 서비스 도메인을 여기에 추가합니다.
+];
+
+const corsOptions = {
+    origin: function (origin, callback) {
+        // origin이 없다는 것은 모바일 앱(Flutter 네이티브), Postman, 서버 간 통신을 의미합니다 (허용)
+        if (!origin || whitelist.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('CORS 정책에 의해 차단된 접근입니다.'));
+        }
+    },
+    credentials: true, // 프론트엔드에서 인증 헤더(JWT 토큰)를 보낼 때 필수
+    optionsSuccessStatus: 200 // 구형 브라우저 호환성 유지
+};
+
+app.use(cors(corsOptions));
+
+// JSON 페이로드 파싱
 app.use(express.json());
 
-// Morgan과 Winston 연동: 모든 HTTP 요청을 logs/info에 기록합니다.
+// x-www-form-urlencoded 형태의 폼 데이터 파싱을 위한 미들웨어
+app.use(express.urlencoded({ extended: true }));
+
+// Morgan과 Winston 연동: 모든 HTTP 요청을 logs/info에 기록
 app.use(morgan('combined', {
     stream: { write: (message) => logger.info(message.trim()) }
 }));
 
+// 정적 파일 제공 라우트
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// --- [Health Check 및 기본 엔드포인트] ---
+// 서버 상태 모니터링 및 루트 경로 접근 시 응답
+app.get('/', (req, res) => {
+    res.status(200).json({
+        status: 'success',
+        message: '✅ 어디가 API 서버가 정상적으로 실행 중입니다.',
+        docs: '/api-docs'
+    });
+});
 
 // --- [API 라우터 연결] ---
 app.use('/api/v1/auth', require('./routes/auth'));
@@ -70,10 +112,31 @@ app.use((req, res, next) => {
 app.use(errorHandler);
 
 // --- [서버 실행] ---
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     logger.info(`========================================`);
     logger.info(`✅ [어디가] 백엔드 서버 가동 중`);
     logger.info(`📖 API 문서: http://localhost:${PORT}/api-docs`);
     logger.info(`🚀 서버 포트: ${PORT}`);
     logger.info(`========================================`);
 });
+
+// --- [안전한 서버 종료 (Graceful Shutdown)] ---
+const gracefulShutdown = () => {
+    logger.info('⚠️ 서버 종료 신호 수신. 안전한 종료를 시작합니다...');
+    server.close(async () => {
+        logger.info('✅ HTTP 서버가 종료되었습니다.');
+        try {
+            if (dbPool) {
+                await dbPool.end();
+                logger.info('✅ DB 커넥션 풀이 안전하게 반환되었습니다.');
+            }
+            process.exit(0);
+        } catch (err) {
+            logger.error('❌ DB 커넥션 풀 종료 중 에러 발생:', err.message);
+            process.exit(1);
+        }
+    });
+};
+
+process.on('SIGINT', gracefulShutdown);
+process.on('SIGTERM', gracefulShutdown);

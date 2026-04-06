@@ -1,54 +1,86 @@
-const favoriteService = require('../services/favorite.service');
+const FavoriteService = require('../services/favorite.service');
 
-exports.postFavorite = async (req, res) => {
-    const { restaurantId } = req.body;
-    const userId = req.user.userId;
-    if (!restaurantId) return res.status(400).json({ status: "fail", message: "식당 ID가 필요합니다." });
+class FavoriteController {
+    static async postFavorite(req, res, next) {
+        try {
+            const { restaurantId } = req.body;
+            const userId = req.user.userId;
 
-    try {
-        await favoriteService.addFavorite(userId, restaurantId);
-        res.json({ status: "success", message: "찜 목록에 추가되었습니다." });
-    } catch (error) {
-        if (error.message === 'ALREADY_FAVORITE') return res.status(400).json({ status: "fail", message: "이미 찜한 식당입니다." });
-        res.status(500).json({ status: "error", message: "찜하기 실패" });
+            // Validator가 있지만 만약을 대비한 2차 방어
+            if (!restaurantId) {
+                return res.status(400).json({ status: "fail", message: "식당 ID가 필요합니다." });
+            }
+
+            const favoriteId = await FavoriteService.addFavorite(userId, restaurantId);
+
+            res.status(201).json({
+                status: "success",
+                message: "찜 목록에 추가되었습니다.",
+                data: { favoriteId }
+            });
+        } catch (error) {
+            next(error); // 전역 에러 핸들러로 위임
+        }
     }
-};
 
-exports.getFavorites = async (req, res) => {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    try {
-        const result = await favoriteService.getMyFavoriteList(req.user.userId, page, limit);
-        res.json({ status: "success", ...result });
-    } catch (error) {
-        res.status(500).json({ status: "error", message: "조회 실패" });
-    }
-};
+    static async getFavorites(req, res, next) {
+        try {
+            const page = parseInt(req.query.page, 10) || 1;
+            const limit = parseInt(req.query.limit, 10) || 10;
 
-exports.getRanking = async (req, res) => {
-    try {
-        const data = await favoriteService.getRanking();
-        res.json({ status: "success", count: data.length, data });
-    } catch (error) {
-        res.status(500).json({ status: "error", message: "랭킹 조회 실패" });
-    }
-};
+            const result = await FavoriteService.getMyFavoriteList(req.user.userId, page, limit);
 
-exports.getStatus = async (req, res) => {
-    try {
-        const data = await favoriteService.getFavoriteStatus(req.user.userId, req.params.restaurantId);
-        res.json({ status: "success", data });
-    } catch (error) {
-        res.status(500).json({ status: "error", message: "상태 확인 실패" });
+            res.status(200).json({
+                status: "success",
+                message: "내 찜 목록을 불러왔습니다.",
+                ...result
+            });
+        } catch (error) {
+            next(error);
+        }
     }
-};
 
-exports.deleteFavorite = async (req, res) => {
-    try {
-        await favoriteService.cancelFavorite(req.params.f_id, req.user.userId);
-        res.json({ status: "success", message: "삭제 완료" });
-    } catch (error) {
-        if (error.message === 'FORBIDDEN') return res.status(403).json({ status: "fail", message: "권한 없음" });
-        res.status(500).json({ status: "error", message: "삭제 실패" });
+    static async getRanking(req, res, next) {
+        try {
+            const data = await FavoriteService.getRanking();
+
+            res.status(200).json({
+                status: "success",
+                count: data.length,
+                data
+            });
+        } catch (error) {
+            next(error);
+        }
     }
-};
+
+    static async getStatus(req, res, next) {
+        try {
+            const restaurantId = req.params.restaurantId;
+            const data = await FavoriteService.getFavoriteStatus(req.user.userId, restaurantId);
+
+            res.status(200).json({
+                status: "success",
+                data
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    static async deleteFavorite(req, res, next) {
+        try {
+            const f_id = req.params.f_id;
+            await FavoriteService.cancelFavorite(f_id, req.user.userId);
+
+            res.status(200).json({
+                status: "success",
+                message: "찜 삭제가 완료되었습니다."
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+}
+
+module.exports = FavoriteController;

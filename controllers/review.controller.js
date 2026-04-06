@@ -1,73 +1,75 @@
-const reviewService = require('../services/review.service');
+const ReviewService = require('../services/review.service');
 
-// 1. 리뷰 등록
-exports.postReview = async (req, res, next) => {
-    const { restaurantId, rating, comment } = req.body;
-    const userId = req.user.userId;
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+class ReviewController {
+    static async postReview(req, res, next) {
+        try {
+            const { restaurantId, rating, comment } = req.body;
+            const userId = req.user.userId; // verifyToken에서 파싱된 유저 ID
 
-    try {
-        const reviewId = await reviewService.writeReview({ userId, restaurantId, rating, comment, imageUrl });
-        res.status(201).json({ status: "success", message: "리뷰 등록 완료", data: { reviewId } });
-    } catch (error) {
-        next(error); // 전역 에러 핸들러로 전달
-    }
-};
+            // 기존 로컬 경로 대신, Multer-S3가 반환한 S3 영구 링크(location)를 추출합니다.
+            const imageUrl = req.file ? req.file.location : null;
 
-// 2. 식당별 전체 리뷰 조회
-exports.getReviews = async (req, res, next) => {
-    try {
-        const reviews = await reviewService.getRestaurantReviews(req.params.restaurantId);
-        res.json({ status: "success", count: reviews.length, data: reviews });
-    } catch (error) {
-        next(error);
-    }
-};
+            const reviewId = await ReviewService.writeReview({ userId, restaurantId, rating, comment, imageUrl });
 
-// 3. 내 리뷰 목록 조회 (추가된 부분)
-exports.getMyReviews = async (req, res, next) => {
-    try {
-        const userId = req.user.userId;
-        const reviews = await reviewService.getMyReviewList(userId);
-        res.json({ status: "success", count: reviews.length, data: reviews });
-    } catch (error) {
-        next(error);
-    }
-};
-
-// 4. 리뷰 요약 정보 조회 (추가된 부분)
-exports.getReviewSummary = async (req, res, next) => {
-    try {
-        const { restaurantId } = req.params;
-        const summary = await reviewService.getSummary(restaurantId);
-        res.json({ status: "success", data: summary });
-    } catch (error) {
-        next(error);
-    }
-};
-
-// 5. 리뷰 수정
-exports.patchReview = async (req, res, next) => {
-    try {
-        await reviewService.editReview(req.params.r_id, req.user.userId, req.body);
-        res.json({ status: "success", message: "리뷰 수정 완료" });
-    } catch (error) {
-        if (error.message === 'FORBIDDEN') {
-            error.statusCode = 403; // 에러 핸들러에서 처리할 수 있게 상태 코드 주입
+            res.status(201).json({
+                status: "success",
+                message: "리뷰 등록 완료",
+                data: {
+                    reviewId,
+                    imageUrl // 프론트엔드에서 업로드 직후 사진을 바로 띄울 수 있도록 응답에 포함
+                }
+            });
+        } catch (error) {
+            next(error);
         }
-        next(error);
     }
-};
 
-// 6. 리뷰 삭제
-exports.deleteReview = async (req, res, next) => {
-    try {
-        await reviewService.removeReview(req.params.r_id, req.user.userId);
-        res.json({ status: "success", message: "리뷰 삭제 완료" });
-    } catch (error) {
-        if (error.message === 'FORBIDDEN') {
-            error.statusCode = 403;
+    static async getReviews(req, res, next) {
+        try {
+            const reviews = await ReviewService.getRestaurantReviews(req.params.restaurantId);
+            res.status(200).json({ status: "success", count: reviews.length, data: reviews });
+        } catch (error) {
+            next(error);
         }
-        next(error);
     }
-};
+
+    static async getMyReviews(req, res, next) {
+        try {
+            const userId = req.user.userId;
+            const reviews = await ReviewService.getMyReviewList(userId);
+            res.status(200).json({ status: "success", count: reviews.length, data: reviews });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    static async getReviewSummary(req, res, next) {
+        try {
+            const { restaurantId } = req.params;
+            const summary = await ReviewService.getSummary(restaurantId);
+            res.status(200).json({ status: "success", data: summary });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    static async patchReview(req, res, next) {
+        try {
+            await ReviewService.editReview(req.params.r_id, req.user.userId, req.body);
+            res.status(200).json({ status: "success", message: "리뷰 수정 완료" });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    static async deleteReview(req, res, next) {
+        try {
+            await ReviewService.removeReview(req.params.r_id, req.user.userId);
+            res.status(200).json({ status: "success", message: "리뷰 삭제 완료" });
+        } catch (error) {
+            next(error);
+        }
+    }
+}
+
+module.exports = ReviewController;

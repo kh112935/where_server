@@ -1,29 +1,47 @@
-const authRepository = require('../repositories/auth.repository');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const AuthRepository = require('../repositories/auth.repository');
 
-// 회원가입 로직
-exports.signUp = async (username, password) => {
-    const existingUser = await authRepository.findUserByUsername(username);
-    if (existingUser) throw new Error('ALREADY_EXISTS');
+class AuthService {
+    static async signUp(username, password) {
+        const existingUser = await AuthRepository.findByUsername(username);
+        if (existingUser) {
+            const error = new Error('이미 사용 중인 아이디입니다.');
+            error.statusCode = 409;
+            throw error;
+        }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    return await authRepository.createUser(username, hashedPassword);
-};
+        const hashedPassword = await bcrypt.hash(password, 10);
+        return await AuthRepository.createUser({ username, password: hashedPassword });
+    }
 
-// 로그인 로직 (토큰 반환)
-exports.login = async (username, password) => {
-    const user = await authRepository.findUserByUsername(username);
-    if (!user) throw new Error('USER_NOT_FOUND');
+    static async login(username, password) {
+        const user = await AuthRepository.findByUsername(username);
+        if (!user) {
+            const error = new Error('가입되지 않은 아이디입니다.');
+            error.statusCode = 401;
+            throw error;
+        }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) throw new Error('INVALID_PASSWORD');
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            const error = new Error('비밀번호가 일치하지 않습니다.');
+            error.statusCode = 401;
+            throw error;
+        }
 
-    const payload = { userId: user.id, username: user.username };
-    return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
-};
+        // DB 컬럼에 맞춰 Payload 구성 (userId, username)
+        const payload = {
+            userId: user.id,
+            username: user.username
+        };
 
-// 프로필 수정 로직
-exports.updateProfile = async (userId, updateData) => {
-    return await authRepository.updateUserProfile(userId, updateData);
-};
+        return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' });
+    }
+
+    static async updateProfile(userId, profileImageUrl) {
+        return await AuthRepository.updateUserProfile(userId, profileImageUrl);
+    }
+}
+
+module.exports = AuthService;
